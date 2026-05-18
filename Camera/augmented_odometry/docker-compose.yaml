@@ -1,0 +1,7 @@
+services:
+  listener:
+    build: .
+    container_name: listener_node
+    network_mode: host
+    ipc: host
+    command: ros2 topic echo /processed_data

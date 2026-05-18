@@ -1,0 +1,101 @@
+function pose_robot = coordConvert(pose_cage)
+    % coordConvert
+    % Converts a pose from the cage frame in the format:
+    %   [rot_x rot_y rot_z rot_w X Y Z]
+    % to the robot pose format:
+    %   [tz ty tx x y z]
+    %
+    % Input:
+    %   pose_cage -> 1x7 vector = [qx qy qz qw x y z]
+    %
+    % Output:
+    %   pose_robot -> 1x6 vector = [tz ty tx x y z]
+
+    % =========================
+    % Calibration matrices
+    % =========================
+    X_gc = [ 0.9948    0.0964    0.0329   -0.0007
+             0.0294    0.0379   -0.9988   -0.0314
+            -0.0975    0.9946    0.0349   -0.0345
+                  0         0         0    1.0000];
+
+    X_bc = [0.0087    0.9998    0.0162    0.0248
+           -0.9999    0.0086    0.0088    0.0618
+            0.0087   -0.0162    0.9998   -0.3441
+                 0         0         0    1.0000];
+
+    % validate input
+    if ~isnumeric(pose_cage) || numel(pose_cage) ~= 7
+        error('Input must be a numeric 1x7 vector in the format [rot_x rot_y rot_z rot_w X Y Z].');
+    end
+
+    pose_cage = reshape(pose_cage, 1, 7);
+
+    % 1) cage pose -> homogeneous matrix
+    Tcg = cameraPose2T(pose_cage);
+
+    % 2) cage_base -> robot_base
+    %    Tbg = X_bc * Tcg * inv(X_gc)
+    Tbg = X_bc * Tcg / X_gc;
+
+    % 3) homogeneous matrix -> [tz ty tx x y z]
+    pose_robot = T2robotPose(Tbg);
+end
+
+function T = cameraPose2T(pose)
+    % pose = [qx qy qz qw x y z]
+
+    qx = pose(1);
+    qy = pose(2);
+    qz = pose(3);
+    qw = pose(4);
+    x  = pose(5);
+    y  = pose(6);
+    z  = pose(7);
+
+    q = [qw qx qy qz];
+    q = q / norm(q);
+
+    qw = q(1);
+    qx = q(2);
+    qy = q(3);
+    qz = q(4);
+
+    R = [1 - 2*(qy^2 + qz^2),   2*(qx*qy - qz*qw),   2*(qx*qz + qy*qw);
+         2*(qx*qy + qz*qw),     1 - 2*(qx^2 + qz^2), 2*(qy*qz - qx*qw);
+         2*(qx*qz - qy*qw),     2*(qy*qz + qx*qw),   1 - 2*(qx^2 + qy^2)];
+
+    T = [R [x; y; z];
+         0 0 0 1];
+end
+
+function pose = T2robotPose(T)
+    % Converts homogeneous matrix to:
+    % [tz ty tx x y z]
+    % assuming R = Rz(tz) * Ry(ty) * Rx(tx)
+
+    R = T(1:3,1:3);
+    x = T(1,4);
+    y = T(2,4);
+    z = T(3,4);
+
+    if abs(R(3,1)) < 1 - 1e-10
+        ty = -asin(R(3,1));
+        tz = atan2(R(2,1), R(1,1));
+        tx = atan2(R(3,2), R(3,3));
+    else
+        ty = -asin(max(min(R(3,1),1),-1));
+
+        if R(3,1) <= -1 + 1e-10
+            ty = pi/2;
+            tz = atan2(-R(1,2), R(2,2));
+            tx = 0;
+        else
+            ty = -pi/2;
+            tz = atan2(-R(1,2), R(2,2));
+            tx = 0;
+        end
+    end
+
+    pose = [tz ty tx x y z];
+end

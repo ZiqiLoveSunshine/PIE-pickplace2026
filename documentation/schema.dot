@@ -1,0 +1,25 @@
+digraph G {
+    // splines="FALSE";
+
+    /* Entities */
+    Optitrack [label="Optitrack", shape="square"]
+    Camera [label="Caméra", shape="ellipse"]
+    Ordi_cage [label="Ordinateur cage", shape="ellipse"]
+    Ordi_camera [label="Ordinateur caméra", shape="ellipse"]
+    Robot [label="Robot", shape="square"]
+
+    /* Relationships */
+    
+    Optitrack->Robot  [label="Capte la position"]
+    Optitrack -> Ordi_cage [label="Publie sur\n /rigidbodies"]
+    Robot -> Ordi_cage [label="Publie ses coordonnées sur\n/robot_pose"]
+    Robot -> Ordi_camera [label="Donne ses coordonnées sur\n/robot_pose "]
+    Ordi_cage -> Robot [label="Publie les instructions\n sur /instruction_cage"]
+    Camera -> Ordi_camera [label="Publie les données \ndes objets en filaire"]
+    Ordi_camera -> Robot [label="Donne les instructions\nsur /object_position"]
+
+
+
+    /* Ranks */
+    { rank=same};
+}
